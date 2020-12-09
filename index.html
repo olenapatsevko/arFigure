@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<!-- three.js library -->
+<script src='vendor/three.js/build/three.min.js'></script>
+<script src="vendor/three.js/examples/js/libs/stats.min.js"></script>
+<!-- ar.js -->
+<script src="build/ar.js"></script>
+
+<body style='margin : 0; overflow: hidden; font-family: Monospace,serif;'>
+<script>
+
+	var renderer	= new THREE.WebGLRenderer({
+		alpha: true
+	});
+	renderer.setClearColor(new THREE.Color('lightgrey'), 0)
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.domElement.style.position = 'absolute'
+	renderer.domElement.style.top = '0px'
+	renderer.domElement.style.left = '0px'
+	document.body.appendChild( renderer.domElement );
+
+	var onRenderFcts= [];
+
+	var scene	= new THREE.Scene();
+
+	var camera = new THREE.Camera();
+	scene.add(camera);
+
+	var arToolkitSource = new THREEx.ArToolkitSource({
+		sourceType : 'webcam',
+	})
+
+	arToolkitSource.init(function onReady(){
+		onResize()
+	})
+
+	window.addEventListener('resize', function(){
+		onResize()
+	})
+	function onResize(){
+		arToolkitSource.onResizeElement()
+		arToolkitSource.copyElementSizeTo(renderer.domElement)
+		if( arToolkitContext.arController !== null ){
+			arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas)
+		}
+	}
+
+	var arToolkitContext = new THREEx.ArToolkitContext({
+		cameraParametersUrl:  'data/camera_para.dat',
+		detectionMode: 'mono',
+		maxDetectionRate: 30,
+		canvasWidth: 80*3,
+		canvasHeight: 60*3,
+	})
+	arToolkitContext.init(function onCompleted(){
+		camera.projectionMatrix.copy( arToolkitContext.getProjectionMatrix() );
+	})
+
+	onRenderFcts.push(function(){
+		if( arToolkitSource.ready === false )	return
+
+		arToolkitContext.update( arToolkitSource.domElement )
+	})
+
+	var markerRoot = new THREE.Group
+	scene.add(markerRoot)
+	var artoolkitMarker = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
+		type : 'pattern',
+		patternUrl : 'data/olenaPatsevko.patt'
+	})
+
+	var smoothedRoot = new THREE.Group()
+	scene.add(smoothedRoot)
+	var smoothedControls = new THREEx.ArSmoothedControls(smoothedRoot, {
+		lerpPosition: 0.4,
+		lerpQuaternion: 0.3,
+		lerpScale: 1,
+	})
+	onRenderFcts.push(function(){
+		smoothedControls.update(markerRoot)
+	})
+
+	var arWorldRoot = smoothedRoot
+	var fig = function (alpha, t, vector) {
+
+	var	koef = 15;
+		t *= koef;
+		alpha *= koef;
+	var	m = 1;
+	var	radius = m;
+		var	c = m;
+		var	d = 1.5;
+	var	o = Math.PI / 2.0;
+		let alpha0 = 0;
+
+		vector.x = radius * Math.cos(alpha) -
+				(radius * (alpha0 - alpha) + t * Math.cos(o) - c * Math.sin(d * t) * Math.sin(o))
+				* Math.sin(alpha);
+
+		vector.y = radius * Math.sin(alpha) +
+				(radius * (alpha0 - alpha) + t * Math.cos(o) - c * Math.sin(d * t) * Math.sin(o))
+				* Math.cos(alpha);
+
+		vector.z = t * Math.sin(o) + c * Math.sin(d * t) * Math.cos(o);
+		vector.multiplyScalar(0.1);
+
+	};
+
+
+	var geometry	= new THREE.ParametricGeometry(fig,400,400);
+	var material	=  new THREE.MeshBasicMaterial({
+		color: 0x00FFFF,
+		transparent: true,
+		opacity: 0.75,
+		side: THREE.DoubleSide,
+		wireframe:true
+	});
+	var mesh	= new THREE.Mesh( geometry, material );
+	mesh.position.y	= 0.5;
+	arWorldRoot.add( mesh );
+
+	onRenderFcts.push(function(){
+		mesh.rotation.x += 0.05;
+	})
+
+	var stats = new Stats();
+	document.body.appendChild( stats.dom );
+	onRenderFcts.push(function(){
+		renderer.render( scene, camera );
+		stats.update();
+	})
+
+	var lastTimeMsec= null
+	requestAnimationFrame(function animate(nowMsec){
+		requestAnimationFrame( animate );
+		lastTimeMsec	= lastTimeMsec || nowMsec-1000/60
+		var deltaMsec	= Math.min(200, nowMsec - lastTimeMsec)
+		lastTimeMsec	= nowMsec
+		onRenderFcts.forEach(function(onRenderFct){
+			onRenderFct(deltaMsec/1000, nowMsec/1000)
+		})
+	})
+</script></body>
