@@ -116,11 +116,13 @@
 		wireframe:true
 	});
 	var mesh	= new THREE.Mesh( geometry, material );
-	mesh.position.y	= 0.5;
+	mesh.position.y	= 0;
 	arWorldRoot.add( mesh );
 
 	onRenderFcts.push(function(){
-		mesh.rotation.x += 0.05;
+		mesh.rotation.x += 0.04;
+		mesh.rotation.y += 0.01;
+
 	})
 
 	var stats = new Stats();
